@@ -1,0 +1,120 @@
+数据库
+1. 切换到root用户
+	su - root
+2. 查看本是否安装了mariadb
+	rpm -qa | grep mariadb
+3. 查看mariadb的状态
+	service mariadb status
+4. 启动mariadb
+	service mariadb start
+5. 关闭mariadb
+	service mariadb stop
+
+
+mysql数据库在启动的时候, 会先启动一个守护进程
+	守护进程
+		进程间通信(一个往共享内存里写东西, 一个读, 发现没更新共享内存(挂掉了),则会重启一个MySQL服务器)
+			MySQL的服务器
+守护进程在判断MySQL服务器是否允许正常, 如果在MySQL使用过程当中, 服务端挂掉了. 守卫进程就会重新拉起来MySQL服务端
+
+MySQL原理:
+	启动了一个MySQL服务端, mysql服务端被分成了很多层, 
+		第一个叫连接层
+			1. 用户验证
+			2. 选择连接协议(TCP, 本地域套接字)
+			3. 创建线程对客户端进行服务
+		还有一个server层:
+			1. 检查sql语句的语法是否规范
+			2. 语义分析(sql语句到底要干啥)
+			3. 权限检查(查看当前的用户是否有操作该表的权限)
+			4. 分析SQL语句的查找方案
+			5. 执行SQL	通过线程将查询到的数据返回客户端	
+		存储引擎: 相当于linux操作系统当中的文件系统, 不同的存储引擎, 可以决定数据的存储方式.
+			INNODB, MyISAM
+	
+
+sql语句是以分号结尾的, sql后面结束的时候必须加上分号;
+select * from  user
+
+mysql/mysql -u root -p密码     ----> 都是MySQL的客户端, 这两个主要作用是启动了一个程序 通过本地域套接字 和服务端连接
+	前者是一个可执行程序 MySQL的客户端
+	后者是登录到服务器的
+
+假设侦听端口为3306
+mysql客户端要经过网络去连接服务器(使用的tcp协议)
+netstat: 查看端口情况
+netstat -anp|grep 3306 查看这个端口有没有跟别人连接
+
+域套接字:
+	本质上就是在本地机器上创建一个文件, 客户端和服务端通过文件来进行通信, 本质上就是进程间通信; 这个进程间通信会走网络协议栈
+	和进程间通信的共享内容很相似, 客户端往里写, 服务端读
+
+服务端:
+	创建socket: sockfd = sockfd(AF_UNIX, SOCK_STREAM, IPPROTO_TCP);
+	bind:
+		struct sockaddr_un server_un;
+		server_un.sun_family = AF_UNIX;
+		server_un.sun_path = ["文件名称"]; // 服务端和客户端就是通过这个文件来连接的
+		bind(sockfd, (struct sockaddr*)&server_un, sizeof(server_un));
+	listen
+	accept
+客户端:
+	创建socket: sockfd = sockfd(AF_UNIX, SOCK_STREAM, IPPROTO_TCP);
+	组织服务端的地址信息结构:
+		struct sockaddr_un server_un;
+		server_un.sun_family = AF_UNIX;
+		server_un.sun_path = ["文件名称"]; // 服务端和客户端就是通过这个文件来连接的
+	connect(sockfd, (struct sockaddr*)& server_un, sizeof(server_un));
+	
+
+MySQL数据库 ---> 数据库管理软件, 管理若干个数据库;  (相当于文件夹)
+	A数据表:                                    (相当于文件)
+		aa
+		aaa
+		aaaa
+	B数据表:
+		bb
+		bbb
+		bbbb
+	C....
+
+show databases; 查看当前MySQL当中有多少个数据库
+show tables;  查看当前数据库当中的数据表
+
+1. 如何创建一个数据库
+	create database[数据库的名称]
+2. 查看已经创建好的数据库的创建语句
+	show create databases[数据库的名称]
+
+字符集:
+	ASCII字符集(1字节): 采用的是1个字节的低7位标识字符, 高位始终为0
+`	LATIN1字符集(1字节): 相对于ASCII字符集做了扩展, 启用了最高位, 能表示字符的范围更加广
+	GBK字符集: 支持中文的, 字符可以使用1个字节, 也可以使用2个字节
+	UTF8: Unicode字符集(可以表示很多语言, 也支持中文), 支持了所有国家的文字字符, 采用的1-4字节
+自上而下,表示字符的范围越来越广; 一般选用UTF8
+
+
+3. 创建数据库的时候, 就需要指定字符集
+	create database [数据库名称] charset=[字符集名称]  
+浏览器一般发出来的数据先发给server端(相当于MySQL的客户端), 处理之后保存到数据库(相当于MySQL的服务器), 
+若发送的数据是中文, MySQL客户端的字符集为utf8, 而MySQL服务器有两层, 假设连接层是utf8, server层是latin1, 则当数据到服务器的server层时就是乱码
+	对于字符集的设置, 尽量在数据链路当中的每一个点, 都保持一致;
+	乱码的来源就是由于前后端字符集不一致 ! ! !
+MarIDB[test]> show variables like '%character%';
++--------------------------+----------------------------+
+Variable_name              | Value                      | 
++--------------------------+----------------------------+
+| character_set_client     | utf8                       |	// mysql客户端的字符集
+| character_set_connection | utf8                       |	// 连接层字符集
+| character_set_database   | latin1                     |	// 创建数据库默认的字符集
+| character_set_filesystem | binary                     |	// 查询结果字符集
+| character_set_results    | utf8                       |	// MySQL内部操作字符集
+| character_set_server     | latin1                     |	// MySQL字段名称所用到的字符串
+| character_set_system     | utf8                       |
+| character_sets_dir       | /usr/share/mysql/charsets/ |
+注意:  创建数据库的时候, 尽量数据库的字符集设置成utf8
+
+4. 删除数据库
+	drop database[数据库名称];
+		连带数据库的表也会删除掉
+	删除数据库这个操作一定要谨慎! ! ! 
