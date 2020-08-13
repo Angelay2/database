@@ -4,6 +4,7 @@
 	c. 多列子查询: 子查询当中返回多列数据
 		使用方式: 只需要在where语句后面使用"(a列,b列) = (子查询语句)"将多个列的名称括起来
 	
+	
 	查询和SMITH的部门和岗位完全相同的所有雇员
 		1. 先查询部门和岗位
 			Select deptno, job from where ename=”SMITH”;
