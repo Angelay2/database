@@ -1,0 +1,465 @@
+1. 子查询
+	a. 单行子查询: 子查询当中只返回了单列,单行的数据
+	b. 多行子查询: 子查询当中返回了单列多行的数据, 两个表的结果如果不在where后面加上约束条件会形成 "笛卡尔积";
+	c. 多列子查询: 子查询当中返回多列数据
+		使用方式: 只需要在where语句后面使用"(a列,b列) = (子查询语句)"将多个列的名称括起来
+	
+	查询和SMITH的部门和岗位完全相同的所有雇员
+		1. 先查询部门和岗位
+			Select deptno, job from where ename=”SMITH”;
+				+--------+-------+
+				| deptno | job   |
+				+--------+-------+
+				|     20 | CLERK |
+				+--------+-------+  拿到部门和岗位
+		2. 再去查询emp中部门号是20的, job是CLERK, 姓名不是SMITH的人
+			select ename, deptno, job from emp where deptno=20 and job='CLERK' and ename!="SMITH";
+				+-------+--------+-------+
+				| ename | deptno | job   |
+				+-------+--------+-------+
+				| ADAMS |     20 | CLERK |
+				+-------+--------+-------+
+		多列子查询: 
+			select ename, deptno, job from emp where (deptno, job)=(select deptno, job from emp where ename='SMITH');  现在并没有说明检索出来的人中不包含SMITH本人
++-------+--------+-------+
+| ename | deptno | job   |
++-------+--------+-------+
+| SMITH |     20 | CLERK |
+| ADAMS |     20 | CLERK |
++-------+--------+-------+
+			 select ename, deptno, job from emp where (deptno, job)=(select deptno, job from emp where ename='SMITH') and ename<> 'SMITH';
++-------+--------+-------+
+| ename | deptno | job   |
++-------+--------+-------+
+| ADAMS |     20 | CLERK |
++-------+--------+-------+
+
+
+在from语句中使用子查询:
+	select x1, x2, x3 from [表的名称] [select...](select当做是一个临时表)
+
+	问题: 显示属于自己部门平均工资的员工的姓名, 部门, 工资, 平均工资
+		1. 平均工资
+			select ename, deptno, sal, avg(sal) from emp;
+				拿到所有每一个人的姓名, 部门编号, 工资, 部门的平均工资
+			select avg(sal),deptno from emp group by deptno;
++-------------+--------+
+| avg(sal)    | deptno |
++-------------+--------+
+| 2916.666667 |     10 |
+| 2175.000000 |     20 |
+| 1566.666667 |     30 |
++-------------+--------+
+		2. emp表进行分组, 分成不同的部门
+			select ename, deptno, sal, avg(sal) from emp, 拿到所有每一个人的姓名, 部门编号, 工资, 部门的平均工资
+		
+		加上判断条件
+
+			(select deptno, avg(sal) from emp group by deptno);拿到部门编号, 部门平均工资
+		比较个人的工资和部门的平均工资
+	
+		3. 不同的部门
+			select ename, deptno, sal, avg_sal from emp, (select avg(sal) avg_sal, deptno dt from emp group by deptno) tmp where tmp.dt=emp.deptno and emp.sal > tmp.avg_sal;
++-------+--------+---------+-------------+
+| ename | deptno | sal     | avg_sal     |
++-------+--------+---------+-------------+
+| ALLEN |     30 | 1600.00 | 1566.666667 |
+| JONES |     20 | 2975.00 | 2175.000000 |
+| BLAKE |     30 | 2850.00 | 1566.666667 |
+| SCOTT |     20 | 3000.00 | 2175.000000 |
+| KING  |     10 | 5000.00 | 2916.666667 |
+| FORD  |     20 | 3000.00 | 2175.000000 |
++-------+--------+---------+-------------+
+
+合并查询: 	
+	union: 作用是将两个查询的结果集进行合并, 会自动去除结果当中重复的行,
+	union all: 作用是将两个查询的结果集进行查询, 不会自动去除结果集当中重复的行
+
+	将工资大于2500或职位是MANAGER的人找出来
+		select ename, sal, job from emp where sal > 2500 or job >=2500 union;
+select ename, sal, job from emp where sal > 2500;
++-------+---------+-----------+
+| ename | sal     | job       |
++-------+---------+-----------+
+| JONES | 2975.00 | MANAGER   |
+| BLAKE | 2850.00 | MANAGER   |
+| SCOTT | 3000.00 | ANALYST   |
+| KING  | 5000.00 | PRESIDENT |
+| FORD  | 3000.00 | ANALYST   |
++-------+---------+-----------+
+select ename, sal, job from emp where job='MANAGER';
++-------+---------+---------+
+| ename | sal     | job     |
++-------+---------+---------+
+| JONES | 2975.00 | MANAGER |
+| BLAKE | 2850.00 | MANAGER |
+| CLARK | 2450.00 | MANAGER |
++-------+---------+---------+
+
+		select ename, sal, job from emp where sal > 2500 union select ename, sal, job from emp where job='MANAGER';
++-------+---------+-----------+
+| ename | sal     | job       |
++-------+---------+-----------+
+| JONES | 2975.00 | MANAGER   |
+| BLAKE | 2850.00 | MANAGER   |
+| SCOTT | 3000.00 | ANALYST   |
+| KING  | 5000.00 | PRESIDENT |
+| FORD  | 3000.00 | ANALYST   |
+| CLARK | 2450.00 | MANAGER   |
++-------+---------+-----------+进行去重
+		select ename, sal, job from emp where sal > 2500 union all select ename, sal, job from emp where job='MANAGER';
++-------+---------+-----------+
+| ename | sal     | job       |
++-------+---------+-----------+
+| JONES | 2975.00 | MANAGER   |
+| BLAKE | 2850.00 | MANAGER   |
+| SCOTT | 3000.00 | ANALYST   |
+| KING  | 5000.00 | PRESIDENT |
+| FORD  | 3000.00 | ANALYST   |
+| JONES | 2975.00 | MANAGER   |
+| BLAKE | 2850.00 | MANAGER   |
+| CLARK | 2450.00 | MANAGER   |
++-------+---------+-----------+相当于将结果1和结果2拼接起来
+
+
+
+内外连接:
+	-- 用前面的写法 
+		select ename, dname from EMP, DEPT where EMP.deptno=DEPT.deptno and ename='SMITH'; 
+	-- 用标准的内连接写法 
+		select ename, dname from EMP inner join DEPT on EMP.deptno=DEPT.deptno and ename='SMITH';(将,变成了inner join, where变成了on)
+
+
+外连接: 
+	连接是指要在多个表当去查询,
+左外连接: 左侧的表完全显示
+	from 表1 left join 表2 on 约束条件
+		select * from stu left join exam on stu.id=exam.id;
++------+------+------+-------+
+| id   | name | id   | grade |
++------+------+------+-------+
+|    1 | jack |    1 |    56 |
+|    2 | tom  |    2 |    76 |
+|    3 | kity | NULL |  NULL |
+|    4 | nono | NULL |  NULL |
++------+------+------+-------+
+
+右外连接: 右侧的表完全显示 
+	from 表1 right join 表2 on 约束条件
+		select * from stu right join exam on stu.id=exam.id;
++------+------+------+-------+
+| id   | name | id   | grade |
++------+------+------+-------+
+|    1 | jack |    1 |    56 |
+|    2 | tom  |    2 |    76 |
+| NULL | NULL |   11 |     8 |
++------+------+------+-------+
+		select * from exam left join stu on stu.id=exam.id;
++------+-------+------+------+
+| id   | grade | id   | name |
++------+-------+------+------+
+|    1 |    56 |    1 | jack |
+|    2 |    76 |    2 | tom  |
+|   11 |     8 | NULL | NULL |
++------+-------+------+------+
+
+	只需要关心sql语句当中的select查询的位置   根据SQL语句select1, select2的位置来决定左右
+	
+
+索引:
+	1. 常见的索引
+		主键索引(primary key): 在一个表当中设置了主键, 则就会创建一个主键索引
+		唯一索引(unique key): 在一个表当中设置了唯一键, 则就会创建一个唯一索引
+		普遍索引: 
+		全文索引
+	2. 建立了一个二叉树的结构, 将设置成为索引的字段的内容, 通过二叉树维护起来;
+	
+
+主键索引:
+	主键的特性: 不能重复, 不能为NULL		
+	按照主键的值, 构建一课二叉树, 准确说是b+树;
+	
+如果一张表当中创建了索引,也就是会创建二叉树结构, 对增删查改的效率是否有影响???
+增: 会有影响, 因为需要更新二叉树
+删: 会有影响, 因为需要更新二叉树
+改: 会有影响, 因为需要更新二叉树
+
+查: 查询的时候如果用到索引字段的值, 作为查询条件, 效率会大大地增加 (前面三个性能的损失微不足道, 最重要的是查)
+	
+查看索引: show keys from [类名称]
+
+	show keys from t1\G;
+
+2个索引(1个是主键, 一个是普通)
+*************************** 1. row ***************************
+        Table: t1   
+   Non_unique: 0                               唯一索引 : 0表示唯一索引, 1表示不是唯一索引
+     Key_name: PRIMARY                         主键索引
+ Seq_in_index: 1 
+  Column_name: id                              主键索引在id列
+    Collation: A
+  Cardinality: 0
+     Sub_part: NULL
+       Packed: NULL
+         Null: 
+   Index_type: BTREE
+      Comment: 
+Index_comment: 
+*************************** 2. row *************************** 
+        Table: t1
+   Non_unique: 1                               普通索引
+     Key_name: qq                               
+ Seq_in_index: 1
+  Column_name: qq                             
+    Collation: A
+  Cardinality: 0
+     Sub_part: NULL
+       Packed: NULL
+         Null: YES
+   Index_type: BTREE
+      Comment: 
+Index_comment: 
+
+	desc t1;
++-------+-------------+------+-----+---------+-------+
+| Field | Type        | Null | Key | Default | Extra |
++-------+-------------+------+-----+---------+-------+
+| id    | int(11)     | NO   | PRI | NULL    |       |  
+| name  | varchar(20) | YES  |     | NULL    |       |
+| qq    | int(11)     | YES  | MUL | NULL    |       |
++-------+-------------+------+-----+---------+-------+
+Key为PRI则是主键索引
+Key为MUL则是普通索引
+
+全文索引:
+	前提: 存储引擎需要是MyISAM
+	innodb存储引擎支持事务(线程安全), 而MyISAM不支持! 所以不用全文索引
+
+删除索引:
+	1. alter table [表名称] drop primary key;
+	2. alter table [表名称] drop index [索引名称];   ---> key_name
+
+
+
+
+事务管理:
+	1. 相当于多线程当中的线程互斥
+	2. 保证多个客户端访问数据库的同一张表的时候, 不会产生数据二义性的问题
+	3. 事务的基本操作
+		3.1 开始事务 start transaction;
+
+		3.2 创建一个保存点 savepoint xx;
+		3.3 回滚 rollback to xx;
+		3.4 提交事务 commit; 
+进行一个操作前, 可以先创建一个保存点, 如果误操作,可以返回到保存点(操作之前的状态)
+提交事务之后, 再rollback, 就会出现错误, 不能再返回了
+
+
+注意: 
+	1. 当提交事务完成之后,就不能再回到之前保存的的保存点了, 因为已经提交了事务
+	2. innodb是支持事务, MyISAM不支持事务
+
+事务的隔离级别:
+	1. 无隔离级别
+		脏读: 读到的数据并不是真实的(无效)的数据
+		不可重复读/检索: 前后两次读到的结果是不一致的, 
+		幻读: 前后读到的数据条目数都是不一致的, 在同一个事务中第一次读到了x条, 第二次读到了x+n条
+
+查看隔离级别:
+	select @@tx_isolation;
++-----------------+
+| @@tx_isolation  |
++-----------------+
+| REPEATABLE-READ |
++-----------------+
+
+更改隔离级别:
+	set session transaction islation level[事务的隔离级别];
+	
+
+视图:
+	1. 视图就是一个虚拟的表, 虚拟表当中的数据来源于真实存在的表, 
+	2. 视图可以当做是一个表来进行操作;
+	3. 修改视图当中的内容也会同步修改真实表当中的数据, 同理, 修改真实表当中
+的数据也会更新视图当中的内容
+
+	如何创建一个视图:
+		create view [视图的名称] as select语句;
++--------+--------+-----------+------+---------------------+---------+---------+--------+
+| empno  | ename  | job       | mgr  | hiredate            | sal     | comm    | deptno |
++--------+--------+-----------+------+---------------------+---------+---------+--------+
+| 007369 | SMITH  | CLERK     | 7902 | 1980-12-17 00:00:00 |  800.00 |    NULL |     20 |
+| 007499 | ALLEN  | SALESMAN  | 7698 | 1981-02-20 00:00:00 | 1600.00 |  300.00 |     30 |
+| 007521 | WARD   | SALESMAN  | 7698 | 1981-02-22 00:00:00 | 1250.00 |  500.00 |     30 |
+| 007566 | JONES  | MANAGER   | 7839 | 1981-04-02 00:00:00 | 2975.00 |    NULL |     20 |
+| 007654 | MARTIN | SALESMAN  | 7698 | 1981-09-28 00:00:00 | 1250.00 | 1400.00 |     30 |
+| 007698 | BLAKE  | MANAGER   | 7839 | 1981-05-01 00:00:00 | 2850.00 |    NULL |     30 |
+| 007782 | CLARK  | MANAGER   | 7839 | 1981-06-09 00:00:00 | 2450.00 |    NULL |     10 |
+| 007788 | SCOTT  | ANALYST   | 7566 | 1987-04-19 00:00:00 | 3000.00 |    NULL |     20 |
+| 007839 | KING   | PRESIDENT | NULL | 1981-11-17 00:00:00 | 5000.00 |    NULL |     10 |
+| 007844 | TURNER | SALESMAN  | 7698 | 1981-09-08 00:00:00 | 1500.00 |    0.00 |     30 |
+| 007876 | ADAMS  | CLERK     | 7788 | 1987-05-23 00:00:00 | 1100.00 |    NULL |     20 |
+| 007900 | JAMES  | CLERK     | 7698 | 1981-12-03 00:00:00 |  950.00 |    NULL |     30 |
+| 007902 | FORD   | ANALYST   | 7566 | 1981-12-03 00:00:00 | 3000.00 |    NULL |     20 |
+| 007934 | MILLER | CLERK     | 7782 | 1982-01-23 00:00:00 | 1300.00 |    NULL |     10 |
++--------+--------+-----------+------+---------------------+---------+---------+--------+
+
+	create view emp_view as select empno, ename, job from emp;
+
+	select * from emp_view;
++--------+--------+-----------+
+| empno  | ename  | job       |
++--------+--------+-----------+
+| 007369 | SMITH  | CLERK     |
+| 007499 | ALLEN  | SALESMAN  |
+| 007521 | WARD   | SALESMAN  |
+| 007566 | JONES  | MANAGER   |
+| 007654 | MARTIN | SALESMAN  |
+| 007698 | BLAKE  | MANAGER   |
+| 007782 | CLARK  | MANAGER   |
+| 007788 | SCOTT  | ANALYST   |
+| 007839 | KING   | PRESIDENT |
+| 007844 | TURNER | SALESMAN  |
+| 007876 | ADAMS  | CLERK     |
+| 007900 | JAMES  | CLERK     |
+| 007902 | FORD   | ANALYST   |
+| 007934 | MILLER | CLERK     |
++--------+--------+-----------+ 展示前三列
+
+	select ename from emp_view; 只看第一列
++--------+
+| ename  |
++--------+
+| SMITH  |
+| ALLEN  |
+| WARD   |
+| JONES  |
+| MARTIN |
+| BLAKE  |
+| CLARK  |
+| SCOTT  |
+| KING   |
+| TURNER |
+| ADAMS  |
+| JAMES  |
+| FORD   |
+| MILLER |
++--------+
+
+	更改: update emp_view set ename='Angela' where ename='SMITH';
+	select ename from emp_view;
++--------+
+| ename  |
++--------+
+| Angela |
+| ALLEN  |
+| WARD   |
+| JONES  |
+| MARTIN |
+| BLAKE  |
+| CLARK  |
+| SCOTT  |
+| KING   |
+| TURNER |
+| ADAMS  |
+| JAMES  |
+| FORD   |
+| MILLER |
++--------+
+ 	select * from emp;
++--------+--------+-----------+------+---------------------+---------+---------+--------+
+| empno  | ename  | job       | mgr  | hiredate            | sal     | comm    | deptno |
++--------+--------+-----------+------+---------------------+---------+---------+--------+
+| 007369 | Angela | CLERK     | 7902 | 1980-12-17 00:00:00 |  800.00 |    NULL |     20 |
+| 007499 | ALLEN  | SALESMAN  | 7698 | 1981-02-20 00:00:00 | 1600.00 |  300.00 |     30 |
+| 007521 | WARD   | SALESMAN  | 7698 | 1981-02-22 00:00:00 | 1250.00 |  500.00 |     30 |
+| 007566 | JONES  | MANAGER   | 7839 | 1981-04-02 00:00:00 | 2975.00 |    NULL |     20 |
+| 007654 | MARTIN | SALESMAN  | 7698 | 1981-09-28 00:00:00 | 1250.00 | 1400.00 |     30 |
+| 007698 | BLAKE  | MANAGER   | 7839 | 1981-05-01 00:00:00 | 2850.00 |    NULL |     30 |
+| 007782 | CLARK  | MANAGER   | 7839 | 1981-06-09 00:00:00 | 2450.00 |    NULL |     10 |
+| 007788 | SCOTT  | ANALYST   | 7566 | 1987-04-19 00:00:00 | 3000.00 |    NULL |     20 |
+| 007839 | KING   | PRESIDENT | NULL | 1981-11-17 00:00:00 | 5000.00 |    NULL |     10 |
+| 007844 | TURNER | SALESMAN  | 7698 | 1981-09-08 00:00:00 | 1500.00 |    0.00 |     30 |
+| 007876 | ADAMS  | CLERK     | 7788 | 1987-05-23 00:00:00 | 1100.00 |    NULL |     20 |
+| 007900 | JAMES  | CLERK     | 7698 | 1981-12-03 00:00:00 |  950.00 |    NULL |     30 |
+| 007902 | FORD   | ANALYST   | 7566 | 1981-12-03 00:00:00 | 3000.00 |    NULL |     20 |
+| 007934 | MILLER | CLERK     | 7782 | 1982-01-23 00:00:00 | 1300.00 |    NULL |     10 |
++--------+--------+-----------+------+---------------------+---------+---------+--------+
+
+修改视图的内容也就同步修改了真实表的内容, 而修改真实表的内容也会修改视图的内容删除视图:
+	drop view [视图名称]; 删除之后, 再去查找 就没了
+
+创建视图的数目是没有限制的;
+
+
+用户管理:
+	mysql的用户管理相当于linux操作系统的多用户管理
+		linux操作系统当中
+			root
+			y2
+			其他用户
+	原因: 不想给数据库操作人员, 所有数据库的操作权限, 所以分用户; 可以设置用户只能看到某一个具体的数据库；
+	不同的用户看到不同的数据库
+
+mysql当中的用户名名称变现形式， root@localhost
+	localhost: 表示允许root用户从本地（数据库所在的机器）连接数据库
+	127.0.0.0：表示允许root用户从本地（数据库所在的机器）连接数据库
+	%：表示可以从任意的ip地址连接到数据库
+	前三个都是ipv4的
+	
+
+创建用户：
+	create user '用户名’@‘允许从哪里连接上来’identified by '密码’
+删除用户：
+	drop user '用户名’@‘允许从哪里连接上来’
+修改用户密码：
+	root用户可以修改其他用户
+		set password for ‘用户名’@‘允许从哪里连接上来’ = password(新密码）;
+	其他用户可以修改自己的密码
+		set password = password（新密码);
+
+如何给用户创建权限？
+	1. 刚刚创建出来的用户是没有任何权限的，
+	2. 语法：
+		grant 权限列表（_priv）on 库名称/库名称.表名称 to '用户名’@‘允许登录的位置’[密码]
+		权限列表：
+			select: 只能检索不能插入
+			all: 所有权限
+		库名称或者库名称.表名称
+			*.*: 表示当前mysql当中的所有数据库和所有数据表
+			数据库名称.*： 对某一个数据库当中的所有表
+
+	grant all on mysql.* to 'y2'@'localhost';  
+现在y2用户就可以使用mysql数据库了（use mysql）
+	
+删除一个用户的权限（收回权限）：
+	revock 权限列表 （_priv）on 库名称或者库名称.表名称 from '用户名’@‘允许从哪里连接上来’
+	revock all on mysql.* from 'y2'@'localhost’;
+	现在该用户就不能再使用mysql了
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
